@@ -1,5 +1,7 @@
 node_modules/
-.env
+Server/.env
+Server/.env
+Client/.env
 .DS_Store
 dist/
 build/
