@@ -23,6 +23,9 @@ app.use(express.static("public"))
 
 //day1 till here
 
+import {router as userRouter} from "./routes/user.routes.js"
 
+app.use("/api/v1/users",userRouter)
+ 
 
 export {app}
