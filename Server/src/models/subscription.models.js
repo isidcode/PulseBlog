@@ -17,4 +17,4 @@ const subscriptionSchema = new Schema(
     {timestamps:true}
 )
 subscriptionSchema.plugin(mongooseAggregatePaginate)
-export const subscriptions = mongoose.model("subscriptions",subscriptionSchema)
+export const subscription = mongoose.model("subscription",subscriptionSchema)
