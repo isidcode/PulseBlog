@@ -3,6 +3,7 @@ import { Apierror } from "../utils/Asynchandler.js";
 import { Apiresponse } from "../utils/Asynchandler.js";
 import { cloudinaryUploader } from "../utils/Cloudinary.js";
 import { post, post } from "../models/post.models.js";
+import { User } from "../models/user.models.js";
 
 const createPost = Asynchandler(async (req, res) => {
   const { title, content, tags, isPublished } = req.body;
@@ -42,6 +43,7 @@ const createPost = Asynchandler(async (req, res) => {
     .json(new Apiresponse(201, createdPost, "Post created successfully"));
 });
 
+//home feed
 const getAllPost = Asynchandler(async (req, res) => {
   const guest = !req.user;
 
@@ -56,11 +58,113 @@ const getAllPost = Asynchandler(async (req, res) => {
       .json(new Apiresponse(200, latestPost, "posts fetched successfully"));
   }
 
-  const smartFeed = Asynchandler(async (req,res) => {
-    
-                
-  })
+  const smartFeed = await post.aggregate(
+    [
+      {
+        $vectorSearch:{
+          index:"vector_index",
+          path:"contentVector",
+          queryVector:req.user.userIntrestVector,
+          numCandidates:100,
+          limit:10,
+        }
+      },
+
+      {
+        $match:{
+          isPublished:true,
+        }
+      },
+
+      {
+        $lookup:{
+          from:User,
+          localField:"owner",
+          foreignField:"_id",
+          as:"owner",
+
+          pipeline:[{
+            $project:{
+              username:1,
+              avatar:1,
+            }
+          }]
+        }
+      },
+
+      {
+        $unwind:"owner"
+      }
+    ]
+  )
+
+  return res 
+  .status(200)
+  .json(200,smartFeed,"feed based on user fetched successfully")
 
 
 });
-export { createPost };
+
+//it converts title in to slug then find post and return it 
+const getPostById = Asynchandler(async (req,res) => {
+  const {slug} = req.params;
+
+  const Post = await post.findOne({slug,isPublished:true})
+  .populate("owner","username avatar","views")
+
+  if(!Post){
+    throw new Apierror(404,"post does nit found")
+  }
+  
+  return res
+  .status(200)
+  .json(200,Post,"PostById fetched successfully")
+
+  
+})
+
+const deletePost = Asynchandler(async (req,res) => {
+  const {postId} = req.params;
+
+  const foundPost = await post.findById(postId)
+
+  if(!foundPost){
+    throw new Apierror(404,"posts not found")
+  }
+
+  const user = req.user._id;
+
+  if(user.toString() !== foundPost.owner.toString()){
+    throw new Apierror(403,"unauthorize to delete post")
+  }
+
+  const imageUrl = foundPost.mediaImage
+
+  if(imageUrl){
+    const publicId = imageUrl
+    .split("/")
+    .pop()
+    .split(".")[0]
+
+    await cloudinaryUploader.destroy(publicId)
+  }
+
+  await post.findByIdAndDelete(postId);
+
+  return res
+  .status(200)
+  .json(
+    new Apiresponse(200,{},"Post deleted successfully")
+  )
+
+
+
+
+
+})
+export { 
+  createPost,
+  getAllPost,
+  getPostById,
+  
+ };
