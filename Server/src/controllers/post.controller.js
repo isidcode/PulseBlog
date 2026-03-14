@@ -23,10 +23,11 @@ const createPost = Asynchandler(async (req, res) => {
   //this takes title and content and conver tit into numerical values(embedding)
   //when user search a query it converts those query to numeric value and match
   //it with stored embedding it understands meanning rather than keyword
-  const embedding = await hf.featureExtraction({
-    model: "sentence-transformers/all-MiniLM-L6-v2",
-    inputs: `${title} ${content}`,
-  });
+  const embedding = await generateEmbedding(`${title}. ${content}`);
+
+  if(!embedding){
+    throw new Apierror(500,"embedding not generated due to some internal error")
+  }
 
   const createdPost = await post.create({
     title,
@@ -34,7 +35,7 @@ const createPost = Asynchandler(async (req, res) => {
     mediaImage: thumbnail.url,
     owner: req.user._id,
     tags: tags || [],
-    isPublished: req.user.status || false,
+    isPublished: isPublished || false,
     contentVector: embedding,
   });
 
